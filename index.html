@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chain Investigator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<style>
+:root{
+  --bg:#0b0d12; --panel:#12151d; --panel2:#181c26; --line:#252a37; --text:#e6e8ee; --muted:#8b93a7;
+  --accent:#ffd166; --red:#e5484d; --blue:#3e63dd; --purple:#8e4ec6; --green:#30a46c; --orange:#f76b15; --teal:#12a594;
+  --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 system-ui,"Segoe UI",sans-serif}
+body{display:flex;flex-direction:column;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+header{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap;min-height:50px}
+.brand{font-weight:700;letter-spacing:.3px;margin-right:6px;white-space:nowrap}
+.brand span{color:var(--red)}
+input,select,textarea{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 8px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:#4a5372}
+#chain{min-width:120px;max-width:200px}
+#addr{flex:1 1 220px;min-width:0;font-family:var(--mono)}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:#4a5372}
+button.primary{background:var(--red);border-color:var(--red);color:#fff;font-weight:600}
+button.small{padding:3px 7px;font-size:12px}
+button:disabled{opacity:.5;cursor:default}
+#main{display:flex;flex:1;min-height:0}
+aside{width:260px;background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:10px;flex-shrink:0}
+#right{border-right:0;border-left:1px solid var(--line);width:390px;display:flex;flex-direction:column;padding:0}
+#cy{flex:1;position:relative;min-width:0;overflow:hidden}
+h3{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:14px 0 6px}
+h3:first-child{margin-top:0}
+.row{display:flex;gap:6px;align-items:center;margin:5px 0}
+.row label{flex:1;color:var(--muted)}
+.row input[type=number]{width:80px}
+.row input[type=date]{width:140px}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+.tok{display:flex;align-items:center;gap:6px;padding:2px 0}
+.sw{width:10px;height:10px;border-radius:2px;flex-shrink:0;display:inline-block}
+.legend .sw{border-radius:50%}
+.legend .sw.line{border-radius:2px;height:4px;width:16px}
+details.adv{margin-top:14px;border-top:1px solid var(--line);padding-top:8px}
+details.adv summary{color:var(--muted);font-size:12px}
+#status{height:26px;flex-shrink:0;border-top:1px solid var(--line);background:var(--panel);padding:4px 12px;color:var(--muted);font-size:12px;display:flex;gap:16px;white-space:nowrap;overflow:hidden}
+#status b{color:var(--text);font-weight:500}
+#st_msg{overflow:hidden;text-overflow:ellipsis;flex:1}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px}
+.addrline{font-family:var(--mono);font-size:12px;word-break:break-all}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.colors{display:flex;gap:6px;margin-top:6px}
+.colors button{width:22px;height:22px;border-radius:50%;padding:0;border:2px solid transparent}
+.colors button.on{border-color:#fff}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+td,th{padding:4px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:500}
+td.r{text-align:right;font-family:var(--mono)}
+a{color:#8fb3ff;text-decoration:none}
+a:hover{text-decoration:underline}
+.in{color:var(--green)} .out{color:var(--red)}
+.pill{display:inline-block;padding:1px 6px;border-radius:10px;font-size:11px;background:#232838;color:var(--muted)}
+.pill.agent{background:#2a2140;color:#c4a7ff} .pill.user{background:#1d2a44;color:#8fb3ff} .pill.system{background:#2a2a2a}
+.warn{color:var(--orange)}
+.cp{cursor:pointer}
+.cp:hover{color:var(--accent)}
+.chip{display:inline-block;background:#232838;border-radius:4px;padding:0 5px;font-size:11.5px;margin:1px 0}
+/* tabs */
+.tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0}
+.tabs button{flex:1;border:0;border-radius:0;background:transparent;padding:9px 2px;color:var(--muted);border-bottom:2px solid transparent;font-size:12px}
+.tabs button.on{color:var(--text);border-bottom-color:var(--red)}
+.badge{display:inline-block;min-width:16px;padding:0 4px;border-radius:8px;background:#2b3142;font-size:10.5px;margin-left:3px;color:var(--text)}
+.badge:empty{display:none}
+.badge.hot{background:var(--red)}
+.pane{flex:1;overflow:auto;padding:10px}
+/* risk & findings */
+.sev{display:inline-block;padding:0 6px;border-radius:4px;font-size:11px;font-weight:600}
+.sev.high{background:#4a1c20;color:#ff9b9e} .sev.med{background:#47290f;color:#ffb37a} .sev.low{background:#1e2a3d;color:#9ab8ff} .sev.info{background:#262b37;color:var(--muted)}
+.meter{height:6px;background:#232838;border-radius:3px;margin:8px 0;overflow:hidden}
+.meter div{height:100%} .meter .high{background:var(--red)} .meter .med{background:var(--orange)} .meter .low{background:var(--blue)}
+.why{margin:4px 0 0;padding-left:18px}
+.finding{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px}
+.finding.high{border-left-color:var(--red)} .finding.med{border-left-color:var(--orange)} .finding.low{border-left-color:var(--blue)}
+.tip{margin-top:6px;font-size:12px;color:#cfd5e4}
+.step{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0}
+.num{width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* plain language */
+.dbtag{margin-top:6px;padding:4px 8px;border-radius:6px;background:#232838;font-size:12.5px}
+.dbtag.good{background:#14301f;color:#7ee2a8} .dbtag.bad{background:#3a1a1d;color:#ffb3b5}
+.screen{margin-top:8px;font-size:12px;line-height:1.6}
+.plain{margin:4px 0 6px;color:#dfe3ee}
+details{margin-top:6px;font-size:12px;color:#cfd5e4}
+details summary{cursor:pointer;color:#8fb3ff}
+.story p{margin:0 0 10px}
+.story-flow{margin:-4px 0 10px;font-size:12.5px;line-height:1.7}
+.explain{background:#1d2130;border-radius:6px;padding:6px 8px;margin-bottom:6px;font-size:12.5px}
+.links{margin-top:6px;font-size:12px}
+/* busy / progress */
+#busy{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:12px;align-items:center;
+  background:#161b27f2;border:1px solid #3a4258;border-radius:10px;padding:10px 14px;width:min(480px,calc(100% - 32px));box-shadow:0 8px 30px #0008}
+.spin{width:20px;height:20px;border:3px solid #2b3142;border-top-color:var(--accent);border-radius:50%;animation:spin .9s linear infinite;flex-shrink:0;display:inline-block}
+.inline-wait{display:flex;gap:8px;align-items:center;color:var(--muted)}
+.inline-wait .spin{width:14px;height:14px;border-width:2px}
+#busyBar{height:3px;background:#1b2030;overflow:hidden;flex-shrink:0}
+#busyBar div{height:100%;width:35%;background:var(--accent);animation:slide 1.2s ease-in-out infinite}
+@keyframes slide{0%{margin-left:-35%}100%{margin-left:100%}}
+body.is-busy #cy{cursor:progress}
+button[data-busy]{opacity:.75;cursor:progress}
+/* beginner mode */
+.guide{position:fixed;inset:0;background:#05070bdd;z-index:50;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 16px}
+.g-card{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:620px;width:100%;padding:28px 28px 22px;font-size:15px;line-height:1.6;margin:auto 0}
+.g-card h2{font-size:21px;margin:0 0 8px;line-height:1.35}
+.g-h3{font-size:15px;margin:18px 0 6px}
+.g-sub{color:var(--muted);font-size:13.5px;margin:4px 0 14px}
+.g-x{position:absolute;top:10px;right:10px;border:0;background:transparent;font-size:18px;color:var(--muted)}
+.g-choice{display:flex;gap:14px;align-items:center;width:100%;text-align:left;padding:14px 16px;margin:8px 0;border-radius:10px;font-size:15px;white-space:normal}
+.g-choice span{font-size:28px}
+.g-choice small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.g-choice:hover{border-color:var(--blue);background:#1b2235}
+.g-input{width:100%;font-size:15px;padding:10px 12px;margin:4px 0 10px}
+.g-label{display:block;color:var(--muted);font-size:13px;margin-top:6px}
+.g-row{display:flex;gap:8px;justify-content:space-between;margin-top:14px}
+.g-row.wrap{flex-wrap:wrap;justify-content:flex-start}
+.g-go{background:var(--red);border-color:var(--red);color:#fff;font-weight:600;padding:9px 16px;font-size:14.5px}
+.g-back{padding:9px 14px;font-size:14px}
+.g-mini{margin-top:6px;font-size:13px}
+.g-card button{white-space:normal;max-width:100%}
+.g-card{overflow-wrap:anywhere}
+.g-steps{padding-left:22px;margin:6px 0}
+.g-steps li{margin-bottom:6px}
+.g-line{background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:8px;padding:10px 12px;margin:8px 0}
+.g-line.good{border-left-color:var(--green)} .g-line.warn{border-left-color:var(--orange)}
+.g-foot{text-align:center;margin-top:16px;font-size:13.5px}
+.g-wait{text-align:center;padding:30px 0}
+.g-spin{width:38px;height:38px;border:4px solid #2b3142;border-top-color:var(--red);border-radius:50%;margin:0 auto 16px;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (max-width:700px){ .g-card{padding:22px 16px 18px} .g-card h2{font-size:18px} }
+/* agent */
+#tab_agent{display:flex;flex-direction:column;padding:0}
+#agentLog{flex:1;overflow:auto;padding:10px}
+.msg{margin-bottom:8px;padding:8px 10px;border-radius:8px;word-wrap:break-word}
+.msg.user{background:#1d2a44;margin-left:30px;white-space:pre-wrap}
+.msg.bot{background:var(--panel2);border:1px solid var(--line)}
+.msg.bot .h{font-weight:700;margin-top:6px} .msg.bot .li{padding-left:8px} .msg.bot .sp{height:6px}
+.msg.bot code{background:#232838;padding:0 4px;border-radius:3px;font-size:12px}
+.msg.bot pre{background:#0b0d12;padding:6px;border-radius:4px;overflow:auto;font-size:12px}
+.msg.tool{font-size:11.5px;color:var(--muted);padding:2px 10px;font-family:var(--mono)}
+.msg.err{background:#3a1a1d;color:#ffb3b5}
+.agentBox{border-top:1px solid var(--line);padding:8px 10px;flex-shrink:0}
+.quick{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.quick button{font-size:11.5px;padding:2px 7px;border-radius:12px}
+#agentInput{width:100%;resize:vertical;min-height:54px}
+#agentStatus{display:none;color:var(--muted);font-size:12px;margin-bottom:4px}
+#wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;user-select:none;z-index:2;overflow:hidden}
+#wm span{font:800 clamp(56px,11vw,150px)/1 system-ui,sans-serif;letter-spacing:.08em;color:#fff;opacity:.035;transform:rotate(-24deg);white-space:nowrap}
+#wm small{position:absolute;right:12px;bottom:8px;font:600 11px/1 system-ui,sans-serif;letter-spacing:.06em;color:var(--muted);opacity:.55}
+.brand .by{font-size:11px;font-weight:600;color:var(--muted);margin-left:6px;letter-spacing:.04em}
+#empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;color:var(--muted);text-align:center;padding:20px}
+#empty div{max-width:460px}
+#empty b{color:var(--text)}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;max-width:540px;width:92%}
+dialog::backdrop{background:#000a}
+dialog label{display:block;margin:10px 0 4px;color:var(--muted)}
+@media (max-width:1000px){
+  #left{display:none}
+  #right{width:340px}
+}
+@media (max-width:700px){
+  header{padding:8px 16px}
+  .brand{width:100%}
+  #main{flex-direction:column}
+  #cy{flex:1 1 45%;min-height:220px}
+  #right{width:100%;flex:1 1 55%;min-height:0;border-left:0;border-top:1px solid var(--line)}
+  #status span:not(#st_msg){display:none}
+  #empty{font-size:12px;align-items:flex-start;padding-top:12px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">⛓ Chain <span>Investigator</span><span class="by">by Cheri</span></div>
+  <select id="chain" title="Chain"></select>
+  <input id="addr" placeholder="Alamat wallet, tx hash, atau link explorer" spellcheck="false">
+  <button class="primary" id="go">Investigasi</button>
+  <button id="addBtn" title="Tambah alamat sebagai seed tambahan di case ini">+ Tambah</button>
+  <button id="guideBtn" class="primary" style="background:#3e63dd;border-color:#3e63dd" title="Mode pemula: dipandu langkah demi langkah">🧭 Mode Pemula</button>
+  <button id="screenBtn" title="Cek cepat risiko satu alamat tanpa membuat graph">🛡 Screening</button>
+  <button id="keyBtn">🔑 API key</button>
+  <button id="menuBtn">Case ▾</button>
+</header>
+
+<div id="busyBar" style="display:none"><div></div></div>
+<div id="main">
+  <aside id="left">
+    <h3>Tampilan graph</h3>
+    <div class="row"><label>Hanya uang bernilai (stablecoin & koin utama)</label><input type="checkbox" id="s_value"></div>
+    <div class="row"><label>Kelompokkan wallet kecil</label><input type="checkbox" id="s_group"></div>
+    <div class="row"><label>Sembunyikan garis di bawah ($)</label><input type="number" id="s_minusd" min="0" step="any"></div>
+    <div class="muted" id="noValueHint" style="font-size:11.5px"></div>
+    <div class="btns"><button class="small" id="relayout">Rapikan ulang</button><button class="small" id="fit">Lihat semua</button></div>
+
+    <h3>Arti warna garis</h3>
+    <div class="legend">
+      <div class="tok"><span class="sw line" style="background:#e5484d"></span>Dana yang sedang dilacak</div>
+      <div class="tok"><span class="sw line" style="background:#30a46c"></span>Masuk ke exchange</div>
+      <div class="tok"><span class="sw line" style="background:#f76b15"></span>Masuk mixer / bridge / pelaku</div>
+      <div class="tok"><span class="sw line" style="background:#6b7489"></span>Lainnya</div>
+    </div>
+    <h3>Arti warna titik</h3>
+    <div class="legend" id="legend"></div>
+    <p class="muted" style="font-size:12px;margin-top:10px">
+      Klik titik = detail · Klik 2× = telusuri<br>
+      Garis putus-putus = belum ditelusuri<br>
+      Arahkan mouse ke garis = lihat nilainya
+    </p>
+
+    <details class="adv"><summary>Pengaturan lanjutan</summary>
+    <div class="row"><label>Transaksi per alamat</label><input type="number" id="s_offset" min="10" max="10000" step="50"></div>
+    <div class="row"><label>Urutan</label><select id="s_sort"><option value="desc">Terbaru dulu</option><option value="asc">Terlama dulu</option></select></div>
+    <div class="row"><label>Maks lawan transaksi / expand</label><input type="number" id="s_topk" min="1" max="500"></div>
+    <div class="row"><label>Deteksi kontrak otomatis</label><input type="checkbox" id="s_autoid"></div>
+    <div class="row"><label>Sembunyikan spam & 0-value</label><input type="checkbox" id="s_spam"></div>
+    <div class="row"><label>Tampilkan semua label garis</label><input type="checkbox" id="s_alllabels"></div>
+    <div class="row"><label>Dari</label><input type="date" id="s_from"></div>
+    <div class="row"><label>Sampai</label><input type="date" id="s_to"></div>
+    <div class="row"><label>Layout</label><select id="s_layout"><option value="flow">Flow (kiri → kanan)</option><option value="cose">Network</option></select></div>
+    <h3>Token <span class="muted" style="text-transform:none;letter-spacing:0">(klik untuk sembunyikan)</span></h3>
+    <div id="tokens" class="muted">—</div>
+    </details>
+  </aside>
+
+  <div id="cy">
+    <div id="wm" aria-hidden="true"><span>CHERI</span><small>Chain Investigator · by Cheri</small></div>
+    <div id="busy" style="display:none">
+      <span class="spin"></span>
+      <div style="flex:1;min-width:0">
+        <div id="busyTitle" style="font-weight:600"></div>
+        <div id="busyDetail" class="muted" style="font-size:12px"></div>
+        <div id="busyMeta" class="muted" style="font-size:11px"></div>
+      </div>
+      <button class="small" id="busyCancel" style="display:none">Batal</button>
+    </div>
+    <div id="empty"><div>
+      <b>Masukkan alamat wallet untuk mulai investigasi.</b><br><br>
+      Tool ini menarik transfer native, token ERC-20, dan internal transaction lewat Etherscan API V2, lalu menggambar alur dananya.
+      Tab <b>Temuan</b> mendeteksi pola pencucian dana dan titik keluar. Tab <b>Agent</b> adalah asisten AI yang bisa menelusuri dan menjelaskan.<br><br>
+      Butuh API key Etherscan gratis (<span class="mono">etherscan.io/myapikey</span>). Untuk agent, butuh Anthropic API key.
+    </div></div>
+  </div>
+
+  <aside id="right">
+    <div class="tabs">
+      <button data-tab="detail" class="on">Detail</button>
+      <button data-tab="find">Temuan<span class="badge" id="findBadge"></span></button>
+      <button data-tab="story">Cerita</button>
+      <button data-tab="agent">🤖 Agent</button>
+      <button data-tab="watch">Pantau<span class="badge" id="watchBadge"></span></button>
+      <button data-tab="audit">Audit</button>
+    </div>
+    <div class="pane" id="tab_detail"></div>
+    <div class="pane" id="tab_find" style="display:none"></div>
+    <div class="pane" id="tab_story" style="display:none"></div>
+    <div class="pane" id="tab_agent" style="display:none">
+      <div id="agentLog"></div>
+      <div class="agentBox">
+        <div class="quick">
+          <button data-q="Jelaskan case ini ke saya seperti ke orang awam yang tidak paham blockchain: apa yang terjadi, uangnya ke mana, dan apa artinya buat saya?">Jelaskan untuk orang awam</button>
+          <button data-q="Ringkas case ini: apa yang terjadi, siapa saja pihak pentingnya, dan seberapa yakin kamu?">Ringkas case</button>
+          <button data-q="Ikuti uangnya dari seed dan cari titik keluar ke exchange, termasuk lintas chain kalau dana masuk bridge. Telusuri seperlunya, lalu laporkan hasilnya.">Cari titik keluar</button>
+          <button data-q="Review graph-ku: apakah ada kesalahan tracing, cabang yang tidak relevan, atau data yang belum lengkap?">Review graph</button>
+          <button data-q="Apa langkah berikutnya yang paling penting? Beri daftar prioritas.">Langkah berikutnya</button>
+        </div>
+        <div id="agentStatus">Agent sedang bekerja…</div>
+        <textarea id="agentInput" placeholder="Tanya agent… (Enter kirim, Shift+Enter baris baru)"></textarea>
+        <div class="row" style="justify-content:space-between">
+          <span><input type="checkbox" id="agentWeb"> <label for="agentWeb" style="display:inline;color:var(--muted)">Web search (due diligence exchange)</label></span>
+          <span><button class="small" id="agentReset">Baru</button> <button class="primary small" id="agentSend">Kirim</button></span>
+        </div>
+      </div>
+    </div>
+    <div class="pane" id="tab_watch" style="display:none"></div>
+    <div class="pane" id="tab_audit" style="display:none"></div>
+  </aside>
+</div>
+
+<div id="status">
+  <span id="st_msg">Siap.</span>
+  <span id="st_id"></span>
+  <span>Node <b id="st_nodes">0</b></span>
+  <span>Edge <b id="st_edges">0</b></span>
+  <span>Transfer <b id="st_tx">0</b></span>
+  <span>API call <b id="st_calls">0</b></span>
+</div>
+
+<dialog id="keyDlg">
+  <h3 style="margin-top:0">API key</h3>
+  <p class="muted" style="margin:0">Semua key hanya disimpan di browser ini (localStorage) dan hanya dikirim ke penyedianya masing-masing.</p>
+  <label for="keyInput">Etherscan API key (wajib). Gratis di <a href="https://etherscan.io/myapikey" target="_blank" rel="noopener">etherscan.io/myapikey</a>. Satu key berlaku untuk semua chain.</label>
+  <input id="keyInput" style="width:100%" class="mono" autocomplete="off">
+  <label for="aKeyInput">Anthropic API key (opsional). Hanya untuk agent otomatis di tab Agent, ditagih terpisah dari langganan claude.ai. Tanpa key ini kamu tetap bisa bertanya ke Claude lewat tombol "Salin ringkasan case".</label>
+  <input id="aKeyInput" style="width:100%" class="mono" autocomplete="off" type="password">
+  <label for="hKeyInput">Helius API key (untuk Solana). Daftar gratis di <a href="https://dashboard.helius.dev/" target="_blank" rel="noopener">dashboard.helius.dev</a>.</label>
+  <input id="hKeyInput" style="width:100%" class="mono" autocomplete="off">
+  <div class="btns" style="justify-content:flex-end"><button id="keyCancel">Batal</button><button class="primary" id="keySave">Simpan</button></div>
+</dialog>
+
+<div id="guide" class="guide" style="display:none">
+  <div class="g-card">
+    <button class="g-x" data-g="close" title="Tutup">✕</button>
+    <div id="guideBody"></div>
+  </div>
+</div>
+
+<dialog id="screenDlg">
+  <h3 style="margin-top:0">🛡 Screening cepat</h3>
+  <p class="muted" style="margin:0 0 8px">Cek apakah sebuah alamat berisiko sebelum kamu bertransaksi dengannya: apakah ada di daftar sanksi atau phishing, dan dengan siapa saja ia pernah bertransaksi langsung. Bisa alamat EVM atau Solana.</p>
+  <div class="row"><input id="screenInput" class="mono" style="flex:1" placeholder="Alamat 0x…, Solana, atau Bitcoin"><button class="primary" id="screenGo">Cek</button></div>
+  <div id="screenOut" style="margin-top:8px"></div>
+  <div class="btns" style="justify-content:flex-end"><button id="screenClose">Tutup</button></div>
+</dialog>
+
+<dialog id="menuDlg">
+  <h3 style="margin-top:0">Case</h3>
+  <div class="btns">
+    <button id="m_report">📑 Laporan investigasi (.html)</button>
+    <button id="m_save">💾 Simpan case (.json)</button>
+    <button id="m_load">📂 Buka case</button>
+    <button id="m_png">🖼 Export PNG</button>
+    <button id="m_csv">📄 Export edge (.csv)</button>
+  </div>
+  <h3>Riwayat case</h3>
+  <div id="history" style="margin-bottom:6px"></div>
+  <h3>Database label</h3>
+  <p class="muted" style="margin:4px 0">Label tersimpan permanen per chain dan otomatis muncul di case lain. Import CSV format <span class="mono">address,label</span>. Label yang mengandung nama exchange (Binance, OKX, Indodax, …) otomatis dianggap titik keluar.</p>
+  <p class="muted" style="margin:4px 0" id="dbInfo"></p>
+  <div class="btns">
+    <button id="m_limp">Import label CSV</button>
+    <button id="m_lexp">Export label CSV</button>
+  </div>
+  <h3>Lainnya</h3>
+  <div class="btns"><button id="m_clear">🗑 Tutup case</button></div>
+  <div class="btns" style="justify-content:flex-end"><button id="menuClose">Tutup</button></div>
+  <input type="file" id="fileCase" accept=".json" hidden>
+  <input type="file" id="fileLabels" accept=".csv,.txt" hidden>
+</dialog>
+
+<script src="js/labels-data.js"></script>
+<script src="js/core.js"></script>
+<script src="js/labels.js"></script>
+<script src="js/price.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/story.js"></script>
+<script src="js/crosschain.js"></script>
+<script src="js/bridges.js"></script>
+<script src="js/sol.js"></script>
+<script src="js/btc.js"></script>
+<script src="js/busy.js"></script>
+<script src="js/guide.js"></script>
+<script src="js/brief.js"></script>
+<script src="js/watch.js"></script>
+<script src="js/audit.js"></script>
+<script src="js/agent.js"></script>
+<script>if(!store.get('ci_guide_seen',false)&&!store.get('ci_last','')&&!location.search) Guide.open(); init();</script>
+</body>
+</html>
