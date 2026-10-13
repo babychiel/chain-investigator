@@ -2,6 +2,10 @@
 
 Tool forensik on-chain pribadi untuk **63 chain EVM** (Ethereum, Arc, Base, BNB, Arbitrum, Polygon, …), **Solana**, dan **Bitcoin**. Masukkan alamat, tx hash, atau link explorer, lalu tool ini menggambar alur dananya, mengenali exchange dan pelaku dari database label, mendeteksi pola pencucian dana, melacak lintas chain, dan menjelaskan semuanya dalam bahasa sehari-hari.
 
+**Buka langsung di web:** https://babychiel.github.io/chain-investigator/
+
+Versi web sama persis dengan versi lokal, kecuali pelacakan Circle CCTP yang butuh server lokal (`Buka Chain Investigator.bat`). API key yang kamu isi hanya tersimpan di browser yang kamu pakai, dan tidak dikirim ke GitHub.
+
 ## Baru pertama kali? Pakai Mode Pemula
 
 Klik tombol biru **🧭 Mode Pemula** (otomatis muncul saat pertama dibuka). Pilih apa yang terjadi, misalnya "Crypto saya dicuri", lalu tempel alamat wallet atau link transaksi. Tool akan mencari sendiri jaringannya, melacak uangnya, lalu menjelaskan hasilnya dalam beberapa kalimat beserta langkah yang harus kamu lakukan. Kamu tidak perlu membaca graph.
